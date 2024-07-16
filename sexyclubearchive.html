@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="https://cdn.materialdesignicons.com/5.3.45/css/materialdesignicons.min.css">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
     <title>SexyClubeArchive</title>
+    <style>
+        .blur {
+            filter: blur(5px);
+        }
+    </style>
 </head>
 
 <body>
@@ -26,8 +31,12 @@
                             <div class="content article-body">
                                 <p>Selecione uma revista:</p>
                                 <div class="buttons">
-                                    <b-button type="is-primary" v-for="revista in revistas" :key="revista.arquivo"
-                                        @click="revistaSelecionada = revista">
+                                    <b-button 
+                                        type="is-primary" 
+                                        v-for="revista in revistas" 
+                                        :key="revista.arquivo"
+                                        @click="revistaSelecionada = revista"
+                                    >
                                         {{ revista.titulo }}
                                     </b-button>
                                 </div>
@@ -44,8 +53,15 @@
                             <div v-for="(edicao, i) in edicoes" :key=`edicao-${i}` class="column is-4">
                                 <div class="card large">
                                     <div class="card-image">
-                                        <figure class="image is-4by5" v-if="edicao.imagens">
-                                            <img :src="edicao.imagens[0]" :alt="edicao.titulo" />
+                                        <figure class="image is-4by5" v-if="edicao.imagens && edicao.imagens.length">
+                                            <img 
+                                                :src="edicao.imagens[0]" 
+                                                :alt="edicao.titulo" 
+                                                :class="{ blur: desfocar }"
+                                                @click="desfocar = false"
+                                            />
+                                        </figure>
+                                        <figure class="image is-4by5 has-background-light" v-else>
                                         </figure>
                                     </div>
                                     <div class="card-content">
@@ -59,18 +75,27 @@
                                                     <span>Edição {{ edicao.edicao }}</span>
                                                 </p>
                                                 <b-taglist attached v-if="edicao.editora || edicao.preco">
-                                                    <b-tag type="is-dark" v-if="edicao.editora">{{ edicao.editora }}</b-tag>
-                                                    <b-tag type="is-info" v-if="edicao.preco">R$ {{ edicao.preco }}</b-tag>
+                                                    <b-tag type="is-dark" v-if="edicao.editora">Editora {{ edicao.editora }}</b-tag>
+                                                    <b-tag type="is-info" v-if="edicao.preco">{{ edicao.preco.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) }}</b-tag>
                                                 </b-taglist>
                                                 <p class="subtitle is-6">{{ formatarData(edicao) }}</p>
                                             </div>
                                         </div>
                                         <div class="content">
-                                            <ul class="is-4 no-padding">
+                                            <ul class="is-4 no-padding" v-if="edicao.principal && edicao.principal.length && edicao.principal[0]">
                                                 <li v-for="(principal, j) in edicao.principal" :key="`principal-${j}`">
                                                     {{ principal }}
                                                 </li>
+                                                <li v-if="edicao.secundario && edicao.secundario.length && edicao.secundario[0]">
+                                                    Mais:
+                                                    <ul class="is-4 no-padding">
+                                                        <li v-for="(secundario, k) in edicao.secundario" :key="`secundario-${k}`">
+                                                            {{ secundario }}
+                                                        </li>
+                                                    </ul>
+                                                </li>
                                             </ul>
+                                            <p v-else><i>não catalogado</i></p>
                                         </div>
                                     </div>
                                 </div>
@@ -100,32 +125,33 @@
         new Vue({
             el: '#app',
             data: {
+                desfocar: true,
                 carregando: false,
                 comprimentoRecebido: 0,
                 revistas: [
                     { 
                         titulo: "Revista Sexy", 
-                        arquivo: "https://raw.githubusercontent.com/forfeit-tg/sexyclubearchive/master/revista-sexy.json",
-                        tamanho: 249434695
+                        arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy.json",
+                        tamanho: 249453935
                     },                    
                     { 
                         titulo: "Revista Sexy Online", 
-                        arquivo: "https://raw.githubusercontent.com/forfeit-tg/sexyclubearchive/master/revista-sexy-online.json",
+                        arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy-online.json",
                         tamanho: 2724413
                     },
                     { 
                         titulo: "Revista Sexy Especial", 
-                        arquivo: "https://raw.githubusercontent.com/forfeit-tg/sexyclubearchive/master/revista-sexy-especial.json",
+                        arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy-especial.json",
                         tamanho: 112351434
                     },
                     { 
                         titulo: "Revista Sexy Premium", 
-                        arquivo: "https://raw.githubusercontent.com/forfeit-tg/sexyclubearchive/master/revista-sexy-premium.json",
+                        arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy-premium.json",
                         tamanho: 103469051
                     },
                     { 
                         titulo: "Revista Premium Especial", 
-                        arquivo: "https://raw.githubusercontent.com/forfeit-tg/sexyclubearchive/master/revista-premium-especial.json",
+                        arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-premium-especial.json",
                         tamanho: 8501590
                     },
                 ],
@@ -152,7 +178,7 @@
                     this.edicoes = null
                 },
 				async carregarEdicoes() {
-					var that = this
+					this.comprimentoRecebido = 0
 					var resposta = await fetch(this.revistaSelecionada.arquivo)
                     if (resposta.ok) {
                         //var resultado = await resposta.json()
@@ -160,7 +186,6 @@
                         const leitor = resposta.body.getReader()
                         //const comprimentoConteudo = +resposta.headers.get('Content-Length')
                         const comprimentoConteudo = this.revistaSelecionada.tamanho
-                        this.comprimentoRecebido = 0
                         let pedacos = []
                         while(true) {
                             const { done, value } = await leitor.read()
