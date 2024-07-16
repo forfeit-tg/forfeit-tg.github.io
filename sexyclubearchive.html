@@ -47,10 +47,15 @@
                     <div class="card article" v-else>
                         <div class="card-content">
                             <b-button @click="limparSelecao()">Voltar</b-button>
+                            <div class="media">
+                                <div class="media-content has-text-centered">
+                                    <p class="title article-title mt-2">{{ revistaSelecionada.titulo }}</p>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="row columns is-multiline">
-                            <div v-for="(edicao, i) in edicoes" :key=`edicao-${i}` class="column is-4">
+                            <div v-for="(edicao, i) in revistaSelecionada.edicoes" :key=`edicao-${i}` class="column is-4">
                                 <div class="card large">
                                     <div class="card-image">
                                         <figure class="image is-4by5" v-if="edicao.imagens && edicao.imagens.length">
@@ -107,8 +112,10 @@
         </div>
 
         <b-loading :is-full-page="true" v-model="carregando" :can-cancel="true">
-            <template
-                v-if="revistaSelecionada">{{ parseInt((comprimentoRecebido/revistaSelecionada.tamanho)*100) }}%</template>
+            <template v-if="revistaSelecionada">
+                <span v-if="revistaSelecionada.tamanho">{{ parseInt((revistaSelecionada.comprimentoRecebido/revistaSelecionada.tamanho)*100) }}%</span>
+                <span v-else>Aguarde...</span>
+            </template>
             <b-loading :active="true"></b-loading>
         </b-loading>
     </div>
@@ -127,47 +134,51 @@
             data: {
                 desfocar: true,
                 carregando: false,
-                comprimentoRecebido: 0,
                 revistas: [
                     { 
                         titulo: "Revista Sexy", 
                         arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy.json",
-                        tamanho: 249453935
+                        tamanho: 0,
+                        comprimentoRecebido: 0,
+                        edicoes: null,
                     },                    
                     { 
                         titulo: "Revista Sexy Online", 
                         arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy-online.json",
-                        tamanho: 2724413
+                        tamanho: 0,
+                        comprimentoRecebido: 0,
+                        edicoes: null,
                     },
                     { 
                         titulo: "Revista Sexy Especial", 
                         arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy-especial.json",
-                        tamanho: 112351434
+                        tamanho: 0,
+                        comprimentoRecebido: 0,
+                        edicoes: null,
                     },
                     { 
                         titulo: "Revista Sexy Premium", 
                         arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-sexy-premium.json",
-                        tamanho: 103469051
+                        tamanho: 0,
+                        comprimentoRecebido: 0,
+                        edicoes: null,
                     },
                     { 
                         titulo: "Revista Premium Especial", 
                         arquivo: "https://media.githubusercontent.com/media/forfeit-tg/sexyclubearchive/master/revista-premium-especial.json",
-                        tamanho: 8501590
+                        tamanho: 0,
+                        comprimentoRecebido: 0,
+                        edicoes: null,
                     },
                 ],
                 revistaSelecionada: null,
-                edicoes: null,
-            },
-
-            mounted() {
-                
             },
 
             watch: {
-                'revistaSelecionada': async function(valor) {
-                    if (valor) {
+                'revistaSelecionada': async function(revista) {
+                    if (revista) {
                         this.carregando = true
-                        await this.carregarEdicoes()
+                        await this.carregarEdicoes(revista)
                         this.carregando = false
                     }
                 }
@@ -175,17 +186,20 @@
             methods: {
                 limparSelecao() {
                     this.revistaSelecionada = null
-                    this.edicoes = null
                 },
-				async carregarEdicoes() {
-					this.comprimentoRecebido = 0
-					var resposta = await fetch(this.revistaSelecionada.arquivo)
-                    if (resposta.ok) {
-                        //var resultado = await resposta.json()
 
+				async carregarEdicoes(revista) {
+                    if (revista.edicoes) {
+                        return revista.edicoes
+                    }
+
+					revista.comprimentoRecebido = 0
+
+					var resposta = await fetch(revista.arquivo)
+                    if (resposta.ok) {
                         const leitor = resposta.body.getReader()
-                        //const comprimentoConteudo = +resposta.headers.get('Content-Length')
-                        const comprimentoConteudo = this.revistaSelecionada.tamanho
+                        revista.tamanho = resposta.headers.get('Content-Length')
+
                         let pedacos = []
                         while(true) {
                             const { done, value } = await leitor.read()
@@ -195,12 +209,12 @@
                             }
 
                             pedacos.push(value)
-                            this.comprimentoRecebido += value.length
+                            revista.comprimentoRecebido += value.length
 
-                            console.log(`Recebido ${this.comprimentoRecebido} de ${comprimentoConteudo}`)
+                            console.log(`Recebido ${revista.comprimentoRecebido} de ${revista.tamanho}`)
                         }
 
-                        let todosPedacos = new Uint8Array(this.comprimentoRecebido)
+                        let todosPedacos = new Uint8Array(revista.comprimentoRecebido)
                         let posicao = 0;
                         for (let pedaco of pedacos) {
                             todosPedacos.set(pedaco, posicao)
@@ -210,7 +224,7 @@
                         let resultado = JSON.parse(new TextDecoder("utf-8").decode(todosPedacos))
                         console.log('resultado', resultado)
                     
-                        this.edicoes = resultado
+                        revista.edicoes = resultado
                     } else {
                         this.limparSelecao()
                         this.$buefy.toast.open({
@@ -233,9 +247,6 @@
                         return data.toLocaleDateString("pt-BR", { month: "long" })
                     }
                 }
-            },
-            computed: {
-                
             },
         })
     </script>
